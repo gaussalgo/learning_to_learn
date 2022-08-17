@@ -7,13 +7,13 @@ from urllib.request import urlopen
 
 class Metric(Enum):
     ACCURACY: int = 1
-    FSCORE: int = 1
+    FSCORE: int = 2
 
 
 class Task(abc.ABC):
 
     label: str
-    metric_type: Metric
+    metric_type: int  # is Metric enum, but fails type check
     url: str
     data_file: str
     data: List[Tuple[str, str, str]] = []  # input, label, category
@@ -36,22 +36,3 @@ class Task(abc.ABC):
             assert os.path.exists(target_fpath)
 
             return target_fpath
-
-    @abc.abstractmethod
-    def verbalize(self, input_texts: Sequence[str], label: str) -> str:
-        pass
-
-    @abc.abstractmethod
-    def read_input_label_pairs(self) -> None:
-        pass
-
-    def get_random_example(self) -> Tuple[str, str]:
-        # TODO: here
-        pass
-
-    def get_random_example_of_category(self, category: str) -> Tuple[str, str]:
-        # TODO: here
-        pass
-
-    def get_all_examples(self) -> Sequence[Tuple[str, str]]:
-        pass
