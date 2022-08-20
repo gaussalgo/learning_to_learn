@@ -32,8 +32,8 @@ class Broadcoverage(SuperGLUE):
 
     def verbalize(self, input_texts: Sequence[str], label: str) -> Tuple[str, str]:
         # format from `load_dataset("super_glue", "cb")["validation"][1]`
-        example = {"premise": input_texts[0],
-                   "hypothesis": input_texts[1],
+        example = {"sentence1": input_texts[0],
+                   "sentence2": input_texts[1],
                    "label": 0 if "not" in label else 1}
         # TODO: check: this might return crap
         return self.prompt.apply(example)
@@ -64,8 +64,11 @@ class BoolQ(SuperGLUE):
         from datasets import load_dataset
         dataset = load_dataset("super_glue", "boolq")[split]
 
-        self.data = [(*("Context: %s" % pair[0], pair[1] for pair in self.prompt.apply(example)),  # type:ignore
-                     self._example_cat(example)) for example in dataset]  # List[(input, target, category) tuples]
+        # self.data = [(*("Context: %s. %s" % (pair[0], pair[1]) for pair in self.prompt.apply(example)),  # type:ignore
+        #              self._example_cat(example)) for example in dataset]  # List[(input, target, category) tuples]
+        self.data = [(*self.prompt.apply(example), self._example_cat(example)) for example in dataset]  # type: ignore
+        self.data = [(("Context: %s" % sample[0]).replace("\nAnswer", "? Yes, or No? \nAnswer").replace("\n", " "), sample[1], sample[2])
+                     for sample in self.data]
 
     def _example_cat(self, example: Dict[str, str]) -> str:
         return example["question"].split()[0]

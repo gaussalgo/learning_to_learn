@@ -13,9 +13,9 @@ tokenizer = AutoTokenizer.from_pretrained(model_path)
 templates = DatasetTemplates("super_glue/axb")
 
 tasks = [
-    # Broadcoverage(),
+    Broadcoverage(),
     BoolQ(),
-    # WinogradSchema()
+    WinogradSchema()
 ]
 
 

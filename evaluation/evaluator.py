@@ -1,5 +1,5 @@
 import itertools
-from typing import Iterable, Dict, List, Optional, Tuple
+from typing import Iterable, Dict, List, Optional, Tuple, Union
 
 from transformers import AutoModelForSeq2SeqLM, PreTrainedTokenizer
 
@@ -85,11 +85,21 @@ class Evaluator:
             predicted_texts.extend(pred_batch)
 
         print("Skipped samples: %s out of total: %s" % (skipped, num_samples))
+        # BoolQ responds consistently in Czech
+        # print(self._evaluate_results_for_metric(["ano" if "es" in e else "ne" for e in expected_texts], predicted_texts,
+        #                                         task.metric_type, ignore_casing=True))
 
-        return self._evaluate_results_for_metric(expected_texts, predicted_texts, task.metric_type)
+        return self._evaluate_results_for_metric(expected_texts, predicted_texts, task.metric_type, ignore_casing=True)
 
-    def _evaluate_results_for_metric(self, expected: List[str], actual: List[str], metric: Metric) -> float:
+    def _evaluate_results_for_metric(self,
+                                     expected: List[str],
+                                     actual: List[str],
+                                     metric: Union[Metric, int],
+                                     ignore_casing: bool) -> float:
         assert len(expected) == len(actual), "Different size of expected and actual predictions :("
+        if ignore_casing:
+            expected = [e.lower() for e in expected]
+            actual = [a.lower() for a in actual]
 
         if metric.value == Metric.ACCURACY.value:
             return sum(e == a for e, a in zip(expected, actual)) / len(expected)

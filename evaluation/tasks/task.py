@@ -20,7 +20,8 @@ class Task(abc.ABC):
 
     def __init__(self, cache_dir: str = ".") -> None:
         self.cache_dir = cache_dir
-        self.data_file = self._maybe_download()
+        if hasattr(self, "url"):
+            self.data_file = self._maybe_download()
 
     def _maybe_download(self) -> str:
         fname = self.url.split("/")[-1]
@@ -36,3 +37,6 @@ class Task(abc.ABC):
             assert os.path.exists(target_fpath)
 
             return target_fpath
+
+    def __str__(self) -> str:
+        return self.__class__.__name__
