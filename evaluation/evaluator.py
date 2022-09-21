@@ -67,7 +67,7 @@ class Evaluator:
                 input_texts.append(Evaluator._construct_sample(demonstrations, sample))
                 targets.append(sample[1])
 
-            encodings = tokenizer(input_texts, return_tensors="pt", padding=True)
+            encodings = tokenizer(input_texts, return_tensors="pt", padding=True).to(model.device)
 
             predictions = model.generate(**encodings)
             pred_batch = tokenizer.batch_decode(predictions, skip_special_tokens=True)
