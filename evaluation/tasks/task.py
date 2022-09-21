@@ -1,7 +1,7 @@
 import abc
 import os
 from enum import Enum
-from typing import Tuple, Iterable, Sequence, List
+from typing import Tuple, List
 from urllib.request import urlopen
 
 

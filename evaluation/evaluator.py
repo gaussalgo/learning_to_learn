@@ -1,63 +1,54 @@
 import itertools
-from typing import Iterable, Dict, List, Optional, Tuple, Union
+from typing import Iterable, Dict, List, Tuple, Union, Optional
 
+from tqdm import tqdm
 from transformers import AutoModelForSeq2SeqLM, PreTrainedTokenizer
 
-from tasks.task import Task, Metric
+from evaluation import config
+from evaluation.tasks.task import Task, Metric
 
 
 class Evaluator:
 
-    def __init__(self,
-                 demo_selection_strategy: str = "random",
-                 batch_size: int = 16):
-        self.demo_selection_strategy = demo_selection_strategy
-        self.batch_size = batch_size
-
-    def evaluate(self,
-                 model: AutoModelForSeq2SeqLM,
+    @staticmethod
+    def evaluate(model: AutoModelForSeq2SeqLM,
                  tokenizer: PreTrainedTokenizer,
-                 tasks: Iterable[Task],
-                 firstn: Optional[int] = None) -> Dict[str, float]:
+                 tasks: Iterable[Task]) -> Dict[str, float]:
         evaluations = {}
 
         for task in tasks:
-            task_eval = self.evaluate_task(model, tokenizer, task, firstn)
+            task_eval = Evaluator.evaluate_task(model, tokenizer, task)
             print("Task %s eval: %s" % (task, task_eval))
 
-            evaluations[task.label] = task_eval
+            evaluations[str(task)] = task_eval
 
         return evaluations
 
-    def selection_criterion(self,
-                            predicted_example: Tuple[str, str, str],
+    @staticmethod
+    def selection_criterion(predicted_example: Tuple[str, str, str],
                             candidate_demonstration: Tuple[str, str, str]) -> bool:
-        if self.demo_selection_strategy == "random":
+        if config.demo_selection_strategy == "random":
+            return True
+        elif config.demo_selection_strategy == "cluster-random":
             # any sample is fine for demonstration, with the random selection strategy
             return predicted_example[2] == candidate_demonstration[2]
         else:
-            raise ValueError("Demo selection strategy %s unknown." % self.demo_selection_strategy)
+            raise ValueError("Demo selection strategy %s unknown." % config.demo_selection_strategy)
 
-    def _construct_sample(self,
-                          demonstrations: List[Tuple[str, str, str]],
+    @staticmethod
+    def _construct_sample(demonstrations: List[Tuple[str, str, str]],
                           predicted_sample: Tuple[str, str, str]) -> str:
-        return "\n".join(["%s %s" % demo[:2] for demo in demonstrations] + [predicted_sample[0]])
+        return "\n".join(["Input: %s Task: %s" % demo[:2] for demo in demonstrations] + [predicted_sample[0]])
 
-    def evaluate_task(self,
-                      model: AutoModelForSeq2SeqLM,
-                      tokenizer: PreTrainedTokenizer,
-                      task: Task,
-                      firstn: Optional[int] = None,
-                      num_demonstrations: int = 3) -> float:
-
+    @staticmethod
+    def collect_predictions(model, tokenizer, task, num_demonstrations, firstn: Optional[int] = None):
         expected_texts = []
         predicted_texts = []
+        num_samples = firstn if firstn is not None else config.firstn if config.firstn is not None else len(task.data)
 
-        num_samples = firstn if firstn is not None else len(task.data)
         skipped = 0
-
-        for batch_offset in range(0, num_samples, self.batch_size):
-            tuples_batch = task.data[batch_offset: batch_offset + self.batch_size]
+        for batch_offset in tqdm(range(0, num_samples, config.batch_size), desc="Evaluating %s" % task):
+            tuples_batch = task.data[batch_offset: batch_offset + config.batch_size]
             input_texts = []
             targets = []
 
@@ -67,13 +58,13 @@ class Evaluator:
                     try:
                         demonstrations.append(next(demo for demo in task.data
                                                    if demo[0] != sample[0] and demo not in demonstrations
-                                                   and self.selection_criterion(sample, demo)))
+                                                   and Evaluator.selection_criterion(sample, demo)))
                     except StopIteration:
                         break
                 if not demonstrations:
                     skipped += 1
                     continue
-                input_texts.append(self._construct_sample(demonstrations, sample))
+                input_texts.append(Evaluator._construct_sample(demonstrations, sample))
                 targets.append(sample[1])
 
             encodings = tokenizer(input_texts, return_tensors="pt", padding=True)
@@ -84,15 +75,28 @@ class Evaluator:
             expected_texts.extend(targets)
             predicted_texts.extend(pred_batch)
 
-        print("Skipped samples: %s out of total: %s" % (skipped, num_samples))
+        print("%s: Skipped samples: %s out of total: %s" % (task, skipped, num_samples))
+
+        return expected_texts, predicted_texts
+
+    @staticmethod
+    def evaluate_task(model: AutoModelForSeq2SeqLM,
+                      tokenizer: PreTrainedTokenizer,
+                      task: Task,
+                      num_demonstrations: int = 3) -> float:
+
+        expected_texts, predicted_texts = Evaluator.collect_predictions(model, tokenizer, task, num_demonstrations)
         # BoolQ responds consistently in Czech
         # print(self._evaluate_results_for_metric(["ano" if "es" in e else "ne" for e in expected_texts], predicted_texts,
         #                                         task.metric_type, ignore_casing=True))
 
-        return self._evaluate_results_for_metric(expected_texts, predicted_texts, task.metric_type, ignore_casing=True)
+        return Evaluator._evaluate_results_for_metric(expected_texts,
+                                                      predicted_texts,
+                                                      task.metric_type,
+                                                      ignore_casing=True)
 
-    def _evaluate_results_for_metric(self,
-                                     expected: List[str],
+    @staticmethod
+    def _evaluate_results_for_metric(expected: List[str],
                                      actual: List[str],
                                      metric: Union[Metric, int],
                                      ignore_casing: bool) -> float:

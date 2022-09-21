@@ -21,6 +21,7 @@ class Priming(Sequence2Sequence):
                  min_num_demonstrations: int = 2,
                  max_num_demonstrations: int = 5,
                  demos_infer_batch_size: int = 32,
+                 demos_selection_strategy: str = "hard",
                  difficulty_sample: int = 64,
                  max_input_length: int = 8000,
                  **kwargs):
@@ -32,6 +33,7 @@ class Priming(Sequence2Sequence):
         self.min_num_demonstrations = min_num_demonstrations
         self.max_num_demonstrations = max_num_demonstrations
         self.demos_infer_batch_size = demos_infer_batch_size
+        self.demos_selection_strategy = demos_selection_strategy
         self.difficulty_sample = difficulty_sample
         self.max_input_length = max_input_length
 
@@ -92,7 +94,7 @@ class Priming(Sequence2Sequence):
         :return: Iterator of model input encodings.
         """
         # we materialize all samples in memory, so that we can heuristically pick the combinations
-        questions, contexts, answers = (list(it) for it in self._per_split_iterators_text_pair(split))
+        questions, contexts, answers = (list(it) for it in self._per_split_iterators(split))
         question_categories = self.train_question_categories if split == "train" else self.val_question_categories
 
         assert len(questions) == len(contexts) == len(answers) == len(question_categories), \
@@ -120,8 +122,8 @@ class Priming(Sequence2Sequence):
                 if sum(map(len, picked_demonstrations)) > self.max_input_length:
                     logger.warning("Skipping too long prompt.")
                     break
-                # pick the most difficult examples out of a sample
-                if split == "train":
+                if split == "train" and self.demos_selection_strategy == "hard":
+                    # pick the most difficult examples out of a sample
                     samples_idx = random.choices(cat_index[sample_category], k=self.difficulty_sample)
                     cand_demonstrations = [self._construct_demonstration(prompts[i], answers[i]) for i in samples_idx]
                     selected_index = self._pick_most_difficult_demo(picked_demonstrations, cand_demonstrations,
