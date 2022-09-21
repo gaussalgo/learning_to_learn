@@ -25,7 +25,9 @@ training_arguments = AdaptationArguments(output_dir="train_dir",
                                          logging_steps=10,
                                          save_steps=1000,
                                          num_train_epochs=50,
-                                         evaluation_strategy="steps")
+                                         evaluation_strategy="steps",
+                                         save_total_limit=10,
+                                         stopping_patience=30)
 eval_examples = 200  # TODO set
 
 # priming
