@@ -1,9 +1,10 @@
 import itertools
-from typing import Iterable, Dict, List, Tuple, Union, Optional
+from typing import Iterable, Dict, List, Union, Optional
 
 from tqdm import tqdm
-from transformers import AutoModelForSeq2SeqLM, PreTrainedTokenizer
+from transformers import AutoModelForSeq2SeqLM, PreTrainedTokenizer, PreTrainedModel
 
+from common.demos_construction import selection_criterion, construct_sample
 from evaluation import config
 from evaluation.tasks.task import Task, Metric
 
@@ -25,23 +26,9 @@ class Evaluator:
         return evaluations
 
     @staticmethod
-    def selection_criterion(predicted_example: Tuple[str, str, str],
-                            candidate_demonstration: Tuple[str, str, str]) -> bool:
-        if config.demo_selection_strategy == "random":
-            return True
-        elif config.demo_selection_strategy == "cluster-random":
-            # any sample is fine for demonstration, with the random selection strategy
-            return predicted_example[2] == candidate_demonstration[2]
-        else:
-            raise ValueError("Demo selection strategy %s unknown." % config.demo_selection_strategy)
-
-    @staticmethod
-    def _construct_sample(demonstrations: List[Tuple[str, str, str]],
-                          predicted_sample: Tuple[str, str, str]) -> str:
-        return "\n".join(["Input: %s Task: %s" % demo[:2] for demo in demonstrations] + [predicted_sample[0]])
-
-    @staticmethod
-    def collect_predictions(model, tokenizer, task, num_demonstrations, firstn: Optional[int] = None):
+    def collect_predictions(model: PreTrainedModel, tokenizer: PreTrainedTokenizer, task: Task, num_demonstrations: int,
+                            firstn: Optional[int] = None,
+                            demo_selection_strategy: str = config.demo_selection_strategy):
         expected_texts = []
         predicted_texts = []
         num_samples = firstn if firstn is not None else config.firstn if config.firstn is not None else len(task.data)
@@ -58,13 +45,13 @@ class Evaluator:
                     try:
                         demonstrations.append(next(demo for demo in task.data
                                                    if demo[0] != sample[0] and demo not in demonstrations
-                                                   and Evaluator.selection_criterion(sample, demo)))
+                                                   and selection_criterion(sample, demo, demo_selection_strategy)))
                     except StopIteration:
                         break
                 if not demonstrations:
                     skipped += 1
                     continue
-                input_texts.append(Evaluator._construct_sample(demonstrations, sample))
+                input_texts.append(construct_sample(demonstrations, sample))
                 targets.append(sample[1])
 
             encodings = tokenizer(input_texts, return_tensors="pt", padding=True).to(model.device)

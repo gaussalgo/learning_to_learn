@@ -2,7 +2,6 @@ from typing import Optional
 
 import torch
 from adaptor.evaluators.generative import ROUGE
-from adaptor.utils import AdaptationDataset
 from transformers import PreTrainedTokenizer
 
 from evaluation.evaluator import Evaluator
@@ -17,7 +16,7 @@ class TaskROUGE(ROUGE):
         self.num_demonstrations = num_demonstrations
         self.firstn = firstn
 
-    def __call__(self, model: torch.nn.Module, tokenizer: PreTrainedTokenizer, dataset: AdaptationDataset) -> float:
+    def __call__(self, model: torch.nn.Module, tokenizer: PreTrainedTokenizer, _) -> float:
         expected, actual = Evaluator.collect_predictions(model, tokenizer,
                                                          self.task, self.num_demonstrations, self.firstn)
         return self.evaluate_str(expected, actual)

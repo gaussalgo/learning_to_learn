@@ -1,6 +1,6 @@
 import logging
 import random
-from typing import Iterable, Union, Dict, List, Tuple, Optional
+from typing import Iterable, Union, Dict, List, Optional
 
 import torch
 from adaptor.objectives.seq2seq import Sequence2Sequence
@@ -71,7 +71,7 @@ class Priming(Sequence2Sequence):
                                   predict_prompt: str,
                                   predicted_answer: str) -> int:
         with torch.no_grad():
-            difficulties = torch.empty(0, device=self.compatible_head_model.device)
+            difficulties = torch.empty(0, device=self.compatible_head_model.device, dtype=torch.float)
 
             for batch_offset in range(0, len(next_demo_cands), self.demos_infer_batch_size):
                 next_demo_cands_batch = next_demo_cands[batch_offset: batch_offset + self.demos_infer_batch_size]

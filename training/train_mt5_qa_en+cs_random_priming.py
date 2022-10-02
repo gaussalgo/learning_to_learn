@@ -10,7 +10,7 @@ from datasets import load_dataset
 
 from evaluation.tasks.en.superglue import all_task_classes
 from priming_objective import Priming
-from training.evaluators import TaskROUGE
+from training.sglue_evaluators import TaskROUGE
 
 training_arguments = AdaptationArguments(output_dir="train_dir",
                                          learning_rate=5e-5,  # we set LR=2e-4 for pre-training experiments
@@ -51,8 +51,8 @@ lang_module = LangModule("google/mt5-base")
 # priming
 per_type_examples = {}
 
-squad_en = load_dataset("squad")
-squad_train = squad_en["train"].filter(lambda entry: len(entry["context"]) < 2000)
+qa_en = load_dataset("adversarial_qa", "adversarialQA")
+qa_train = qa_en["train"].filter(lambda entry: len(entry["context"]) < 2000)
 
 
 def _get_en_squad_categories(data) -> List[str]:
@@ -64,14 +64,14 @@ def _get_en_squad_categories(data) -> List[str]:
 q_answering_en = Priming(lang_module,
                          difficulty_sample=64,  # TODO set
                          demos_selection_strategy="random",  # TODO set
-                         texts_or_path=squad_train["question"],
-                         text_pair_or_path=squad_train["context"],
-                         val_texts_or_path=squad_en["validation"]["question"][-eval_examples:],
-                         val_text_pair_or_path=squad_en["validation"]["context"][-eval_examples:],
-                         labels_or_path=[a["text"][0] for a in squad_train["answers"]],
-                         val_labels_or_path=[a["text"][0] for a in squad_en["validation"]["answers"]][-eval_examples:],
-                         train_question_categories=_get_en_squad_categories(squad_train),
-                         val_question_categories=_get_en_squad_categories(squad_en["validation"])[-eval_examples:],
+                         texts_or_path=qa_train["question"],
+                         text_pair_or_path=qa_train["context"],
+                         val_texts_or_path=qa_en["validation"]["question"][-eval_examples:],
+                         val_text_pair_or_path=qa_en["validation"]["context"][-eval_examples:],
+                         labels_or_path=[a["text"][0] for a in qa_train["answers"]],
+                         val_labels_or_path=[a["text"][0] for a in qa_en["validation"]["answers"]][-eval_examples:],
+                         train_question_categories=_get_en_squad_categories(qa_train),
+                         val_question_categories=_get_en_squad_categories(qa_en["validation"])[-eval_examples:],
                          batch_size=1,
                          val_evaluators=val_metrics + superglue_metrics,
                          # val_evaluators=val_metrics,
