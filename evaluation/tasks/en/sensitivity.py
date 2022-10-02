@@ -20,12 +20,14 @@ class QADemonstrationsSensitivityROUGE(ROUGE):
 
     def __call__(self, model: torch.nn.Module, tokenizer: PreTrainedTokenizer, _) -> float:
         expected, actual_random = Evaluator.collect_predictions(model, tokenizer,
-                                                                self.task, self.num_demonstrations, self.firstn)
+                                                                self.task, self.num_demonstrations, self.firstn,
+                                                                demo_selection_strategy="random")
         random_performance = self.evaluate_str(expected, actual_random)
         print("Model's performance in random selection: %s" % random_performance)
 
         expected, actual_informative = Evaluator.collect_predictions(model, tokenizer,
-                                                                     self.task, self.num_demonstrations, self.firstn)
+                                                                     self.task, self.num_demonstrations, self.firstn,
+                                                                     demo_selection_strategy="cluster-random")
         informative_performance = self.evaluate_str(expected, actual_informative)
 
         print("Model's performance in informative selection: %s" % informative_performance)
