@@ -53,9 +53,11 @@ class Evaluator:
                     continue
                 input_texts.append(construct_sample(demonstrations, sample))
                 targets.append(sample[1])
-
-            encodings = tokenizer(input_texts, return_tensors="pt", padding=True).to(model.device)
-
+            try:
+                encodings = tokenizer(input_texts, return_tensors="pt", padding=True).to(model.device)
+            except IndexError:
+                print("Skipping input text %s" % input_texts)
+                continue
             predictions = model.generate(**encodings)
             pred_batch = tokenizer.batch_decode(predictions, skip_special_tokens=True)
 
