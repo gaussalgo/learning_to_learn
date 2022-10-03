@@ -1,5 +1,18 @@
-# learn_to_prime
+# Learning to Learn
 Training and evaluation testbed for few-shot learners on unseen tasks
+
+## Training
+
+To reproduce the training of our published models, clone this repository and run the following scripts:
+
+```shell
+export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+pip install -r train/requirements.txt
+pip install -r evaluation/requirements.txt
+
+python train/train_mt5_qa_en+cs_hard_priming.py
+```
+Don't forget to prepend the execution of the training scripts with GPU configuration (`CUDA_VISIBLE_DEVICES`) or logging configuration allowing you to track the experiment (we use comet.ml, setting `COMET_API_KEY`).
 
 ## Evaluation
 
